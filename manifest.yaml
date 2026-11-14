@@ -43,7 +43,7 @@ persistence: none
 # change it later. Know that before you push it.
 #
 # docs/REVIEW_AND_SHARING.md is the whole story.
-owner_email: you@example.com
+owner_email:	
 
 app:
   # A PLACEHOLDER. Replace it before anything else, or the build will refuse
