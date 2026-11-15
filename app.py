@@ -1,40 +1,9 @@
-"""Your app. Replace this with whatever you are building.
-
-The shape never changes, whatever your app does:
-
-    class App:
-        manifest  -> the parsed manifest.yaml sitting next to this file
-        handle(call) -> Result
-
-`handle` is called once per request and must return a `Result` whose `data`
-matches the `output` your manifest declares for that outcome — exactly: every
-declared field present, nothing extra, right types. The runtime checks it and
-refuses anything that does not match, which is deliberate. An app that can
-return surprise fields is an app Pippa cannot describe to a user before they
-install it.
-
-Three things worth knowing before you start:
-
-**You get the inputs, and nothing about who asked.** No user id, no account,
-no conversation. `call.inputs` is what Pippa extracted from the message;
-besides it, `call.context` carries only the time, an id for your logs, and
-whether the person picked your app by name. This is on purpose: your app
-cannot leak what it was never given.
-
-**You keep nothing.** A fresh copy of this class is built for every call and
-thrown away afterwards. Writing to a file or a global will appear to work and
-then silently stop, because the next call may be on a different machine.
-
-**Errors are part of the design.** Raise `AgentAppError` with a `user_message`
-when you cannot answer. That message is the one a user may see; everything
-else — the exception type, the traceback — stays in the logs.
-"""
+"""Estimate token costs using user-supplied usage and prices."""
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, localcontext
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 from pippa_agentapp_sdk import (
     AgentAppError,
@@ -46,22 +15,72 @@ from pippa_agentapp_sdk import (
 )
 
 MANIFEST_PATH = Path(__file__).with_name("manifest.yaml")
+MILLION = Decimal("1000000")
+CENT = Decimal("0.01")
+
+LABELS = {
+    "requests_per_month": "requests per month",
+    "current_input_tokens": "current input tokens per request",
+    "output_tokens": "output tokens per request",
+    "proposed_input_tokens": "proposed input tokens per request",
+    "input_price_per_million": "input price per million tokens",
+    "output_price_per_million": "output price per million tokens",
+}
+
+REQUIRED = (
+    "requests_per_month",
+    "current_input_tokens",
+    "output_tokens",
+    "input_price_per_million",
+    "output_price_per_million",
+)
 
 
-class CannotReadDate(AgentAppError):
-    """Raised when the message did not contain a date we can work with."""
-
-    # What a user may be shown. Write it as a sentence, not an error code.
-    user_message = "I could not work out which date you meant."
+class InvalidBudget(AgentAppError):
+    user_message = "Please supply valid usage figures and token prices."
     retryable = False
 
 
-class App:
-    """A small, complete example: count the days until a date."""
+def refuse(message: str) -> None:
+    error = InvalidBudget(message)
+    error.user_message = message
+    raise error
 
+
+def read_number(inputs: dict, name: str, *, whole: bool = False) -> Decimal:
+    raw = inputs.get(name)
+    label = LABELS[name]
+
+    if raw is None or raw == "":
+        refuse(f"Please provide {label}.")
+
+    if isinstance(raw, bool):
+        refuse(f"Please provide a number for {label}.")
+
+    try:
+        value = Decimal(str(raw))
+    except (InvalidOperation, ValueError, TypeError):
+        refuse(f"Please provide a number for {label}.")
+
+    if not value.is_finite() or value < 0:
+        refuse(f"Please provide a finite, non-negative number for {label}.")
+
+    # Keep calculations and outputs within practical numeric limits.
+    if value > Decimal("1000000000000"):
+        refuse(f"Please provide {label} no greater than one trillion.")
+
+    if whole and value != value.to_integral_value():
+        refuse(f"Please provide a whole number for {label}.")
+
+    return value
+
+
+def rounded(value: Decimal) -> float:
+    return float(value.quantize(CENT, rounding=ROUND_HALF_UP))
+
+
+class App:
     def __init__(self) -> None:
-        # Validated at construction, so an app whose manifest is wrong fails
-        # immediately and loudly rather than on some later call.
         self._manifest = validate_manifest(load_manifest_file(MANIFEST_PATH))
 
     @property
@@ -69,110 +88,109 @@ class App:
         return self._manifest
 
     def handle(self, call: Call) -> Result:
-        """One request in, one Result out.
+        if call.outcome_id != "tokens.compare":
+            refuse("Please choose the token budget calculation.")
 
-        `call.outcome_id` says which of your manifest's outcomes was asked
-        for. With one outcome you can ignore it; with several, branch on it.
-        """
-        if call.outcome_id != "days.until":
-            raise AgentAppError(f"this app cannot do {call.outcome_id!r}")
+        inputs = call.inputs
+        missing = [
+            LABELS[name]
+            for name in REQUIRED
+            if inputs.get(name) is None or inputs.get(name) == ""
+        ]
+        if missing:
+            refuse("Please provide: " + "; ".join(missing) + ".")
 
-        text = (call.inputs.get("date") or "").strip()
-        if not text:
-            # The manifest tells the extractor to send an empty string rather
-            # than guess, so this is the ordinary "they did not say" path.
-            #
-            # A missing or unreadable date (here, and in `_parse` below) is
-            # the only thing this app refuses for, which is why it never reads
-            # `call.context.explicit`, True when the person picked the app
-            # with @. That refusal is right whoever chose the app; the test
-            # that says so is in test_app.py.
-            raise CannotReadDate("no date in the message")
+        with localcontext() as context:
+            context.prec = 80
+            return self._calculate(inputs)
 
-        # `call.context.now` is the current time, supplied by the runtime
-        # rather than read from the clock. That is what makes an app testable:
-        # a test can say what "now" is.
-        today = self._today(call)
-        target = self._parse(text, today)
-        difference = (target - today).days
+    def _calculate(self, inputs: dict) -> Result:
+        requests = read_number(inputs, "requests_per_month", whole=True)
+        if requests == 0:
+            refuse("Please provide requests per month greater than zero.")
 
-        return Result(
-            data={
-                "days": abs(difference),
-                "target_date": target.isoformat(),
-                "weekday": target.strftime("%A"),
-                "already_passed": difference < 0,
-            },
-            # Optional. One plain sentence Pippa may use when it writes its
-            # reply. Say what you found, not what you did.
-            narrative=self._sentence(target, difference),
+        current = read_number(inputs, "current_input_tokens", whole=True)
+        output = read_number(inputs, "output_tokens", whole=True)
+        input_price = read_number(inputs, "input_price_per_million")
+        output_price = read_number(inputs, "output_price_per_million")
+
+        comparison_supplied = inputs.get("proposed_input_tokens") not in (None, "")
+        proposed = (
+            read_number(inputs, "proposed_input_tokens", whole=True)
+            if comparison_supplied
+            else current
         )
 
-    @staticmethod
-    def _today(call: Call) -> date:
-        """The user's today, not the server's.
+        current_input = requests * current
+        proposed_input = requests * proposed
+        monthly_output = requests * output
+        current_total = current_input + monthly_output
+        proposed_total = proposed_input + monthly_output
 
-        A server in UTC and a user in Auckland disagree about what day it is
-        for twelve hours out of every twenty-four, and "how many days until"
-        is exactly the question that notices.
-        """
-        # No try/except around ZoneInfo, and that is the point: the manifest
-        # declares this input as `type: timezone`, so the runtime has already
-        # rejected anything that is not a real IANA zone before your code
-        # runs. Declaring the right type is cheaper than validating by hand,
-        # and the user gets a better error.
-        zone = call.inputs.get("timezone")
-        moment: datetime = call.context.now
-        if zone:
-            moment = moment.astimezone(ZoneInfo(zone))
-        return moment.date()
+        current_cost = (
+            current_input * input_price + monthly_output * output_price
+        ) / MILLION
+        proposed_cost = (
+            proposed_input * input_price + monthly_output * output_price
+        ) / MILLION
+        savings = current_cost - proposed_cost
 
-    @staticmethod
-    def _parse(text: str, today: date) -> date:
-        """Turn what the user wrote into a date.
+        data = {
+            "current_monthly_input_tokens": int(current_input),
+            "proposed_monthly_input_tokens": int(proposed_input),
+            "monthly_output_tokens": int(monthly_output),
+            "current_total_monthly_tokens": int(current_total),
+            "proposed_total_monthly_tokens": int(proposed_total),
+            "current_monthly_cost": rounded(current_cost),
+            "proposed_monthly_cost": rounded(proposed_cost),
+            "monthly_savings": rounded(savings),
+            "annualised_savings": rounded(savings * 12),
+        }
 
-        Deliberately small — real date parsing is its own project. Handles
-        `YYYY-MM-DD`, `25 December`, `December 25` and a bare day number.
-        """
-        cleaned = text.replace(",", " ").strip()
-
-        for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
-            try:
-                return datetime.strptime(cleaned, fmt).date()
-            except ValueError:
-                continue
-
-        for fmt in ("%d %B", "%B %d", "%d %b", "%b %d"):
-            try:
-                parsed = datetime.strptime(cleaned, fmt).date()
-            except ValueError:
-                continue
-            # A bare day and month has no year. "25 December" asked in
-            # February means this year; asked in December means this year too,
-            # until it has passed, and then it means next year.
-            candidate = parsed.replace(year=today.year)
-            if candidate < today:
-                candidate = candidate.replace(year=today.year + 1)
-            return candidate
-
-        if cleaned.lower() == "tomorrow":
-            return today + timedelta(days=1)
-
-        raise CannotReadDate(f"could not parse {text!r} as a date")
-
-    @staticmethod
-    def _sentence(target: date, difference: int) -> str:
-        # Built by hand rather than with `%-d`, which is a GNU extension: it
-        # raises ValueError on Windows, where half of you are developing, and
-        # the failure would only show up at the last line of a working app.
-        pretty = (
-            f"{target.strftime('%A')} {target.day} "
-            f"{target.strftime('%B')} {target.year}"
+        undefined = []
+        comparisons = (
+            ("input_reduction_percent", current_input, proposed_input),
+            ("total_token_reduction_percent", current_total, proposed_total),
+            ("cost_reduction_percent", current_cost, proposed_cost),
         )
-        if difference == 0:
-            return f"That is today, {pretty}."
-        if difference < 0:
-            return f"{pretty} was {abs(difference)} days ago."
-        if difference == 1:
-            return f"{pretty} is tomorrow."
-        return f"There are {difference} days until {pretty}."
+        for field, baseline, replacement in comparisons:
+            if baseline:
+                data[field] = rounded(
+                    (baseline - replacement) / baseline * 100
+                )
+            else:
+                undefined.append(field)
+
+        currency = (inputs.get("currency") or "").strip()
+        if currency:
+            data["currency"] = currency
+
+        assumptions = (
+            "Request volume, output tokens per request and supplied prices "
+            "remain unchanged. Both prices must use the same currency. "
+            "Estimates exclude caching, discounts, retries, taxes and other "
+            "fees. Annualised savings assume unchanged usage for 12 months. "
+            "Positive savings mean a reduction; negative savings mean an "
+            "increase. Shorter inputs may affect answer quality."
+        )
+        if not comparison_supplied:
+            assumptions += (
+                " No proposed input count was supplied, so the comparison "
+                "uses the current count and shows no change."
+            )
+        if not currency:
+            assumptions += " No currency was supplied; amounts are unlabelled."
+        if undefined:
+            assumptions += (
+                " Percentages with a zero baseline are undefined and omitted: "
+                + ", ".join(undefined)
+                + "."
+            )
+        data["assumptions"] = assumptions
+
+        prefix = f"{currency} " if currency else ""
+        narrative = (
+            f"Estimated monthly cost is {prefix}{current_cost:.2f}, "
+            f"compared with {prefix}{proposed_cost:.2f} in the proposed scenario."
+        )
+        return Result(data=data, narrative=narrative)
