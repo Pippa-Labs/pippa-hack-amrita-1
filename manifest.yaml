@@ -6,12 +6,11 @@ owner_email:
 app:
   id: hack.amrita_1
   name: Token Budget
-  version: 0.1.0
+  version: 0.1.1
   publisher: a builder
   summary: >-
-    Calculates estimated AI token costs and compares savings from shorter
-    inputs using usage figures and prices you supply. Sends no data to
-    external services.
+    Calculates estimated AI token costs and savings from shorter inputs.
+    Guides you through missing figures and sends no data to external services.
 
 agent_types:
   - personal
@@ -19,91 +18,150 @@ agent_types:
 outcomes:
   - id: tokens.compare
     summary: >-
-      Calculate monthly AI token costs and savings from reducing input
-      tokens per request.
+      Calculate monthly AI token costs and input-token savings.
+      When figures are missing, return the next question to ask.
+      Include figures already supplied in the conversation on every call.
     example_phrases:
       - calculate my monthly AI token cost
       - how much would reducing input tokens save
+      - help me work out my AI spending
       - compare these two token budgets
       - estimate the cost of these AI requests
       - calculate savings from shorter AI prompts
       - work out my monthly token spending
       - calculate the annual savings from fewer input tokens
+
     inputs:
       - name: requests_per_month
         type: number
         required: false
         description: >-
-          Monthly number of AI requests. Extract only a figure supplied
-          by the user. Leave out if absent; never guess.
+          Monthly number of AI requests explicitly supplied in this
+          conversation. Carry forward earlier answers. Leave out if
+          unknown; never guess.
+
       - name: current_input_tokens
         type: number
         required: false
         description: >-
-          Current average input tokens per request. Leave out if absent;
-          never estimate from text or guess.
+          Current average input tokens per request explicitly supplied
+          in this conversation. Carry forward earlier answers.
+          Leave out if unknown; do not estimate from text.
+
       - name: output_tokens
         type: number
         required: false
         description: >-
-          Average output tokens per request, unchanged in both scenarios.
-          Leave out if absent; never guess.
+          Average output tokens per request explicitly supplied in this
+          conversation. Carry forward earlier answers. This remains
+          unchanged in the comparison. Leave out if unknown; never guess.
+
       - name: proposed_input_tokens
         type: number
         required: false
         description: >-
-          Proposed average input tokens per request. For a cost-only
-          question, leave out and the app will use the current input count.
-          Otherwise extract the proposed count if supplied; never guess.
+          Proposed average input tokens per request, if explicitly
+          supplied in this conversation. Carry forward earlier answers.
+          Leave out if absent; the app then calculates current costs
+          with no change in input length. Never invent a reduction target.
+
       - name: input_price_per_million
         type: number
         required: false
         description: >-
-          Input price per one million tokens supplied by the user.
-          Leave out if absent. Never infer a model price.
+          Input price per one million tokens explicitly supplied in this
+          conversation. Carry forward earlier answers. Convert a price
+          per thousand tokens to a price per million when necessary.
+          Leave out if unknown; never infer a model price.
+
       - name: output_price_per_million
         type: number
         required: false
         description: >-
-          Output price per one million tokens supplied by the user.
-          Leave out if absent. Never infer a model price.
+          Output price per one million tokens explicitly supplied in this
+          conversation. Carry forward earlier answers. Convert a price
+          per thousand tokens to a price per million when necessary.
+          Leave out if unknown; never infer a model price.
+
       - name: currency
         type: string
         required: false
         description: >-
-          Currency explicitly supplied by the user, such as USD or GBP.
-          Leave out if absent or ambiguous; never infer from location.
+          Currency explicitly supplied in this conversation, such as
+          USD or GBP. Carry forward earlier answers. Leave out if
+          absent or ambiguous; never infer from location.
 
     output:
+      - name: status
+        type: string
+        description: needs_input or complete
+
+      - name: next_question
+        type: string
+        required: false
+        description: The next question to ask when information is missing.
+
+      - name: missing_inputs
+        type: string
+        required: false
+        description: Comma-separated names of missing calculation inputs.
+
+      - name: supplied_inputs
+        type: string
+        description: A readable record of supplied figures for this call.
+
       - name: current_monthly_input_tokens
         type: integer
+        required: false
+
       - name: proposed_monthly_input_tokens
         type: integer
+        required: false
+
       - name: monthly_output_tokens
         type: integer
+        required: false
+
       - name: current_total_monthly_tokens
         type: integer
+        required: false
+
       - name: proposed_total_monthly_tokens
         type: integer
+        required: false
+
       - name: current_monthly_cost
         type: number
+        required: false
+
       - name: proposed_monthly_cost
         type: number
+        required: false
+
       - name: monthly_savings
         type: number
+        required: false
+
       - name: annualised_savings
         type: number
+        required: false
+
       - name: input_reduction_percent
         type: number
         required: false
+
       - name: total_token_reduction_percent
         type: number
         required: false
+
       - name: cost_reduction_percent
         type: number
         required: false
+
       - name: currency
         type: string
         required: false
+
       - name: assumptions
         type: string
+        required: false
