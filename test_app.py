@@ -1,4 +1,4 @@
-"""Contract and calculation tests, run in the publishing build."""
+"""Tests run through Pippa's LocalRunner in the publishing build."""
 
 from datetime import datetime, timezone
 
@@ -41,8 +41,52 @@ def test_manifest():
     assert [o.id for o in app.manifest.outcomes] == ["tokens.compare"]
 
 
+def test_no_inputs_asks_about_monthly_requests():
+    data = call({}).data
+    assert data["status"] == "needs_input"
+    assert "how many AI requests" in data["next_question"]
+    assert "requests_per_month" in data["missing_inputs"]
+    assert data["supplied_inputs"] == "No figures supplied yet."
+    assert "current_monthly_cost" not in data
+
+
+def test_collection_progresses_when_earlier_answers_are_supplied():
+    inputs = {}
+
+    for name in (
+        "requests_per_month",
+        "current_input_tokens",
+        "output_tokens",
+        "input_price_per_million",
+        "output_price_per_million",
+    ):
+        data = call(inputs).data
+        assert data["status"] == "needs_input"
+        assert data["missing_inputs"].split(", ")[0] == name
+        inputs[name] = EXAMPLE[name]
+
+    data = call(inputs).data
+    assert data["status"] == "complete"
+    assert data["current_monthly_cost"] == 780
+
+
+def test_supplied_figures_are_returned_with_the_question():
+    data = call({"requests_per_month": 20000}).data
+    assert data["status"] == "needs_input"
+    assert "average input token count" in data["next_question"]
+    assert "requests per month: 20000" in data["supplied_inputs"]
+    assert "requests_per_month" not in data["missing_inputs"]
+
+
+def test_app_does_not_remember_previous_calls():
+    call({"requests_per_month": 20000})
+    data = call({}).data
+    assert "how many AI requests" in data["next_question"]
+
+
 def test_worked_example():
     data = call(EXAMPLE).data
+    assert data["status"] == "complete"
     assert data["current_monthly_input_tokens"] == 160000000
     assert data["proposed_monthly_input_tokens"] == 60000000
     assert data["monthly_output_tokens"] == 20000000
@@ -56,13 +100,7 @@ def test_worked_example():
     assert data["total_token_reduction_percent"] == 55.56
     assert data["cost_reduction_percent"] == 38.46
     assert data["currency"] == "USD"
-
-
-def test_missing_inputs_explain_what_is_needed():
-    with pytest.raises(InvalidBudget) as failure:
-        call({})
-    assert "requests per month" in failure.value.user_message
-    assert "input price per million" in failure.value.user_message
+    assert "next_question" not in data
 
 
 @pytest.mark.parametrize(
@@ -87,14 +125,23 @@ def test_invalid_numbers(field, value):
         call({**EXAMPLE, field: value})
 
 
+def test_invalid_partial_input_is_not_ignored():
+    with pytest.raises(InvalidBudget) as failure:
+        call({"requests_per_month": -5})
+    assert "requests per month" in failure.value.user_message
+
+
 def test_cost_only_uses_current_input_count():
     inputs = dict(EXAMPLE)
     del inputs["proposed_input_tokens"]
-    data = call(inputs).data
+    result = call(inputs)
+    data = result.data
+    assert data["status"] == "complete"
     assert data["current_monthly_cost"] == 780
     assert data["proposed_monthly_cost"] == 780
     assert data["monthly_savings"] == 0
     assert "No proposed input count" in data["assumptions"]
+    assert "compare" in result.narrative
 
 
 def test_unchanged_usage():
@@ -148,7 +195,6 @@ def test_decimal_prices_and_rounding():
     }).data
     assert data["current_monthly_cost"] == 0.11
     assert data["monthly_savings"] == 0.11
-    # Annualise before rounding: 0.105 * 12 = 1.26.
     assert data["annualised_savings"] == 1.26
 
 
@@ -159,6 +205,7 @@ def test_missing_currency_is_not_invented(currency):
         del inputs["currency"]
     else:
         inputs["currency"] = currency
+
     data = call(inputs).data
     assert "currency" not in data
     assert "amounts are unlabelled" in data["assumptions"]
@@ -166,13 +213,15 @@ def test_missing_currency_is_not_invented(currency):
 
 def test_explicit_selection():
     assert call(EXAMPLE, explicit=True).data == call(EXAMPLE).data
-    with pytest.raises(InvalidBudget):
-        call({}, explicit=True)
+    data = call({}, explicit=True).data
+    assert data["status"] == "needs_input"
+    assert data["next_question"]
 
 
 def test_runner_enforces_output_contract(monkeypatch):
     monkeypatch.setattr(
-        App, "handle",
+        App,
+        "handle",
         lambda self, call: Result(data={"surprise": "hello"}),
     )
     with pytest.raises(OutputShapeViolation):
