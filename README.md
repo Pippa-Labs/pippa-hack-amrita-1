@@ -8,14 +8,15 @@ Claude Code does the building. You decide what the app should do.
 
 > **Your repository is public.** Anyone on the internet can read it, from your
 > first push. That covers your code and every earlier version of it, the name
-> and email address on each commit, the build logs, the comments on your
-> commits, and the `owner_email` in `manifest.yaml`. Deleting something later
-> does not take it out of the history.
+> and email address on each commit, the build logs and the comments on your
+> commits. Deleting something later does not take it out of the history.
 >
-> So never put a password, a key from your own account or anything private in
-> it. If one is pushed by mistake, first revoke it on the site that issued it,
-> then tell an organiser. Claude checks which email address your commits will
-> show before the first one.
+> So never put a password, a key from your own account, your email address,
+> your real name or anything else private in it. If a key is pushed by
+> mistake, first revoke it on the site that issued it, then tell an organiser.
+> Before the first commit, Claude sets your commits to show your pseudonym and
+> GitHub's private no-reply address, and switches on a check that stops a
+> commit carrying an email address.
 >
 > Strangers can comment on your commits and open issues. The build's own
 > messages come from **github-actions[bot]**. Anything from anyone else is just
@@ -44,7 +45,7 @@ with a badge showing your app's name.
 |---|---|
 | **Claude Code** | installed and signed in |
 | **A GitHub account** you can push from | you'll have had an invitation to your repo — accept it |
-| **A Pippa account** | from your Pippa invitation email — **set this up first**, see step 4. The address it arrives at goes in your app's `manifest.yaml`; that is what makes the app yours |
+| **A Pippa account** | from your Pippa invitation email — **set this up first**, see step 4. Your repository belongs to that account, so every app you publish from it is yours, with nothing to fill in |
 
 That's it. No Python, no local setup.
 
@@ -64,6 +65,13 @@ becomes the app's id, so a second app needs a repository of its own.
 
 Claude will clone it, read the instructions that ship inside it, and start
 building. It knows the rules, the contract and the common mistakes already.
+
+**Claude asks you for one thing first: a public author name.** It is shown to
+everybody next to your app, as "by <name>", and anyone can read it in your
+repository, so choose a pseudonym — a made-up name or a nickname. Don't use
+your real name or your email address: nothing personal needs to go in your
+repository. Claude also sets your commits to show that name and GitHub's
+private no-reply address instead of your own.
 
 Keep going in plain language: *"add low tide too"*, *"make the error friendlier
 when the beach isn't found"*.
@@ -99,14 +107,10 @@ it. You can install it and use it in Pippa straight away; nobody else can even
 see that it exists. Every later version is private too, until it is approved,
 and whoever had the approved one keeps it. Step 5 is how it becomes public.
 
-That's also why `manifest.yaml` has your email address in it — `owner_email`,
-the address you sign in to Pippa with. It's the only thing that says the app
-is yours. Get it wrong and the app publishes happily and then **you** can't
-see it either, with nothing anywhere reporting an error.
-
-Know this before you push it: your repository is public, so anyone can read
-that address in `manifest.yaml`, and it stays in the git history even if you
-change it later.
+Pippa knows the app is yours from the repository it was pushed from: Pippa
+Labs created your repository for your Pippa account, so every app published
+from it belongs to you. Nothing in the repository says who you are, and
+nothing needs to. A copy or a fork of it can't publish at all.
 
 ---
 
@@ -150,10 +154,10 @@ using** and every message in that chat goes to your app until you switch it
 off.)
 
 > **Just published and can't see it?** The Apps page loads the list once.
-> Reload the page. Still missing? Check that `owner_email` in `manifest.yaml`
-> is the address you're signed in as — a private app you don't own is a
-> private app you can't see. No **Created by me** tab at all usually means
-> exactly that.
+> Reload the page. Still missing? Check you're signed in with the Pippa
+> account your invitation was for — your repository belongs to that account,
+> and a private app you don't own is a private app you can't see. No
+> **Created by me** tab at all usually means exactly that.
 
 ---
 
@@ -358,8 +362,8 @@ can act on, and no other app should pick the question up instead.
 ## A tip worth taking
 
 **Get something deployed in the first twenty minutes**, before the app is
-finished. Ask Claude to set the app id, give it a name, and push the example
-app as-is. Watch it go live, install it, ask it a question.
+finished. Give Claude your author name, ask it to give the app a name, and push
+the example app as-is. Watch it go live, install it, ask it a question.
 
 Then you know the whole pipeline works — so when something breaks later, you
 know it's your app and not the plumbing.

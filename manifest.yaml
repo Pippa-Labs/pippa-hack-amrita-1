@@ -1,13 +1,31 @@
 manifest_version: 1
 persistence: none
 
-owner_email: 
+# ── Your public author name ──────────────────────────────────────────────────
+#
+# EMPTY ON PURPOSE. Claude asks you for it before anything else, and nothing
+# publishes until it is filled in (the build says "Nothing to publish yet").
+#
+# It is the name everybody sees next to your app: "by <name>" on the install
+# screen, in the list of apps and on every answer your app gives. So it is
+# PUBLIC, and it should be a pseudonym: a made-up name or a nickname, never
+# your real name and never an email address. This repository is public too,
+# so anyone can read it here as well.
+#
+# The rules: 3 to 30 characters; letters, numbers, spaces, dots, hyphens and
+# underscores; starting with a letter or a number; nothing that looks like an
+# email or a web address; and not "pippa", "official" or "verified". Another
+# builder cannot use the same name, and you can use yours on all your apps.
+#
+# It does not decide who owns the app, and nothing in this file does. Pippa
+# Labs created this repository for your Pippa account, so every app published
+# from it is yours. docs/REVIEW_AND_SHARING.md is the whole story.
+app_author_name: ""
 
 app:
   id: hack.amrita_1
   name: Token Budget
   version: 0.1.1
-  publisher: a builder
   summary: >-
     Calculates estimated AI token costs and savings from shorter inputs.
     Guides you through missing figures and sends no data to external services.

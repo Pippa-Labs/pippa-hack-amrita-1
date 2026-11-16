@@ -160,8 +160,9 @@ one.
 
 Exactly as you would test a public app, which is the point.
 
-1. Open **[app.getpippa.ai/apps](https://app.getpippa.ai/apps)** signed in as
-   the account in your manifest's `owner_email`.
+1. Open **[app.getpippa.ai/apps](https://app.getpippa.ai/apps)** signed in
+   with the Pippa account your invitation was for: the one your repository
+   belongs to.
 2. Choose **Created by me**. Your app has a card there because you own it; it
    is not there for anyone else. Press **Install**, which installs your latest
    version. (On **Public apps** your app says **Your app — manage it in
@@ -172,37 +173,40 @@ It runs the same way it will on the day it is public: same sandbox, same
 twenty seconds, same manifest enforcement, same routing. Nothing about a
 private app is a simulation, so a private app that works is an app that works.
 
-### `owner_email` is the whole of "you own it"
+### Your repository is what makes it yours
 
-Nothing else in the system connects an app to a person. The push comes from a
-repository, and a repository is not an account — so `owner_email` in
-`manifest.yaml` is the only thing that says the app is yours:
+Pippa Labs created your repository for your Pippa account, and Pippa keeps
+that link on its own side. When you push, the build proves to Pippa which
+repository the push came from, with a token signed by GitHub that nothing in
+the repository can change. Every app published from your repository belongs
+to your account. Nothing in `manifest.yaml` says who owns the app, and nothing
+needs to: in a public repository, that is also nothing for anybody to read.
 
-```yaml
-owner_email: sam@mycollege.ac.uk
+```mermaid
+flowchart LR
+    R["your repository<br/>Pippa-Labs/pippa-hack-tide-times"] -->|"push"| B["the build"]
+    B -->|"signed by GitHub:<br/>this repository"| P{"Pippa: whose<br/>repository is it?"}
+    P -->|"yours"| A["hack.tide_times<br/>belongs to your<br/>Pippa account"]
+    P -->|"nobody's: a fork<br/>or a copy"| X["refused,<br/>nothing deployed"]
 ```
 
-Put the address you **sign in to Pippa with** there — the one your invitation
-was sent to. If it is missing, misspelt, or another address you own, the app
-publishes without complaint and is then invisible to everyone, you included.
-There is no error to find, because nothing failed.
+Three things follow.
 
-`scripts/check.py` warns about it, in the build log and under **Warnings** in
-the commit comment, and that warning is the only sign you get:
+- **Only your repository can publish your app.** A fork or a copy cannot
+  publish at all. Pippa refuses it before anything is deployed: *This
+  repository isn't linked to a Pippa builder account, so it can't publish.*
+- **Your account has to exist first.** If you were invited and have not
+  created your Pippa account yet, the push is refused with *This repository
+  isn't linked to anyone's Pippa account yet.* Create it from your invitation
+  email, then push again.
+- **What people see is `app_author_name`**, the public name you chose for your
+  app: a pseudonym, shown as "by <name>". It has nothing to do with who owns
+  the app, and it is the only name of yours anybody sees.
 
-```
- WARN owner_email is still the template's placeholder (you@example.com)
-```
-
-It is a warning rather than a failure for one reason: the app really does
-publish, so refusing the push would be refusing something the platform
-accepts. It is printed twice, at the top and immediately before the verdict,
-because the test output in between is long enough to hide it.
-
-`owner_email` is not `publisher`. `publisher` is the name shown to users;
-Pippa does not show them `owner_email`. It is in your repository, though: in a
-public repository anyone can read the address in `manifest.yaml`, and it stays
-in the git history even if you change it later. Know that before you push it.
+An older `manifest.yaml` may still have an `owner_email` line. Delete it: in a
+public repository Pippa refuses the push while it is there, because anybody
+can read the address. `docs/TROUBLESHOOTING.md` has every one of these
+messages, word for word.
 
 ## Letting somebody else try it
 
@@ -270,9 +274,10 @@ different things.
 
 ### What a reviewer sees
 
-Everything in your manifest: the app's name, summary and publisher, every
-outcome with its example phrases, every input and output, the owner's email
-address, and who you have shared it with. They do not read your code.
+Everything in your manifest: the app's name, summary and author name, every
+outcome with its example phrases, every input and output. Besides that, which
+Pippa account the app belongs to and who you have shared it with. They do not
+read your code.
 
 Which makes the manifest worth a last read before you submit, this time as
 prose. "Tidal predictions service" tells a reviewer nothing, the same way it

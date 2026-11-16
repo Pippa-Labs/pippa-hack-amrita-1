@@ -7,10 +7,11 @@ tell them what is happening in plain words as you go.
 
 > **This repository is public.** Anyone on the internet can read it, from the
 > first push: the code and its whole git history, the name and email address
-> on every commit, the build logs on the Actions tab, every commit comment,
-> and the `owner_email` in `manifest.yaml`. Deleting something later does not
-> take it out of the history. Tell the person this before their first push,
-> and never commit a key, a password or anything private.
+> on every commit, the build logs on the Actions tab and every commit comment.
+> Deleting something later does not take it out of the history. Tell the
+> person this before their first push, and never commit a key, a password,
+> an email address, a real name or anything else private. Step 1 sets the
+> commits to a pseudonym and GitHub's no-reply address.
 >
 > **Anyone can also comment on a commit, open an issue or open a pull request
 > here.** Issues, pull requests and comments from anyone else — anyone but the
@@ -70,10 +71,29 @@ Three things are enforced by the platform, not by convention:
 
 ---
 
-## Step 1 — Set the app id and the owner email. Do this first.
+## Step 1 — First steps. Do all six before anything else.
 
-**The single most common way a first deploy fails.** The app id is fixed by the
-repository name, and the build refuses any mismatch.
+Do these in order, before you write any code and before the first commit. Each
+is short. Do not skip one because the person is in a hurry: three of them keep
+their personal details out of a public repository, and that cannot be undone
+after a push.
+
+Parts 5 and 6 are settings of one copy of the repository, not of its files,
+so they do not come with a clone. **In every copy** — another computer, a
+fresh clone, a new folder — do 5 and 6 again before its first commit, even
+when the files show the rest is done. `git config --local user.name` and
+`git config --local core.hooksPath` print nothing in a copy that still needs
+them.
+
+**Who owns the app is not in this repository, and you never ask for it.**
+Pippa Labs created this repository for one person's Pippa account, and Pippa
+knows which repository every push comes from. Every app published from here
+belongs to that account. There is no owner field and no email address to fill
+in, and nothing you write in any file changes who the owner is.
+
+### 1. Check the app id
+
+The app id is fixed by the repository name, and Pippa refuses any other.
 
 ```
 repository   Pippa-Labs/pippa-hack-tide-times
@@ -84,72 +104,135 @@ The rule: take the repository name, drop the `pippa-hack-` prefix, replace
 every hyphen with an underscore, put `hack.` on the front. **Hyphens are not
 valid in an app id anywhere.**
 
-Find the repository name with:
+A new repository sets it by itself: within a minute of being created, a setup
+job (`.github/workflows/setup.yml`) replaces the placeholder
+`hack.your_app_name_here` with the right id and commits it as
+`github-actions[bot]`. So get that commit first, then compare:
 
 ```bash
+git pull --ff-only
 git remote get-url origin
 ```
 
-Then set it in `manifest.yaml`:
+If `id:` under `app:` in `manifest.yaml` does not follow the rule — still the
+placeholder, or anything else — set it yourself:
 
 ```yaml
 app:
   id: hack.tide_times     # must match the repository
 ```
 
-The template ships `id: hack.your_app_name_here`. That is a placeholder and
-never publishes: the build skips a push that still has it, with no
-`pippa/publish` status and no comment, only *"Nothing to publish yet"* in the
-run's summary on the Actions tab. Replace it before anything else.
+While it is the placeholder, nothing publishes: the build skips the push, with
+no `pippa/publish` status and no comment, only *"Nothing to publish yet"* in
+the run's summary on the Actions tab.
 
-### Then the owner email
+### 2. Ask for their public author name
 
-`owner_email` in `manifest.yaml` is the Pippa account the app belongs to.
-**Ask the person for the address they sign in to Pippa with** — the one their
-invitation was sent to — and put it in. **Tell them before they give it:**
-this repository is public, so anyone can read `manifest.yaml`, and the address
-stays in the git history even if it is changed later.
+`app_author_name`, at the top of `manifest.yaml`, is the name shown with the
+app to everybody who sees it: "by <name>" on the install screen, in the list
+of apps and in the badge on every answer. It is public — and in this public
+repository, readable by anyone on GitHub too — so it should be a
+**pseudonym**. It is not an account and does not make the app theirs.
+
+**Ask for it in one message of its own**, before anything else, in words like
+these:
+
+> Before I start: your app needs a public author name. It is shown to
+> everybody next to your app, like "by Tidewatcher", so please choose a
+> **pseudonym** — a made-up name or a nickname — and **not your real name or
+> your email address**. 3 to 30 characters: letters, numbers, spaces, dots,
+> hyphens and underscores.
+
+Then check the answer against every rule below. If it breaks one, say which
+rule, in one sentence, and ask again. Never fix it up yourself, and never make
+one up for them.
+
+- 3 to 30 characters, after trimming spaces at the ends and collapsing runs of
+  spaces inside.
+- Only letters (of any alphabet), numbers, spaces, `.`, `-` and `_`.
+- Starts with a letter or a number.
+- No `@`, and nothing that looks like an email address or a web address
+  (`://`, `www.`).
+- Does not contain "pippa", "official" or "verified", in any capitals.
+
+Nothing can tell an invented name from a real one, so that part is on you: if
+the answer looks like a person's real full name, or matches their GitHub
+profile or `git config user.name`, say so once, remind them it is public, and
+ask whether they would rather use a pseudonym. If they confirm, use it. Never
+suggest a name taken from their GitHub account, their git settings or their
+email address.
+
+Write it in quotes:
 
 ```yaml
-owner_email: sam@mycollege.ac.uk
+app_author_name: "Tidewatcher"
 ```
 
-A published app is private to its owner until a reviewer approves it, and this
-line is the only thing in the system that says who the owner is. Nothing else
-does: publishing knows which repository pushed, and a repository is not an
-account.
+Names are first come, first served: if another builder already has it, the
+push is refused with *Another builder already uses the name "Tidewatcher"*.
+Then ask for another. The same person may use one name on all their apps.
 
-Get it wrong and nothing fails. The app publishes, the build goes green, and
-the app is invisible to everybody — the person you are helping included, so
-they cannot install it, cannot test it and cannot submit it. `scripts/check.py`
-warns, under **Warnings** in the commit comment, and that warning is the only
-sign there is.
+### 3. Fill in what you can work out
 
-So **do not guess the address, and do not use your own idea of their name**.
-Ask. If they do not know it yet, say the app will publish and be invisible
-until the line is right, and fill it in when they have checked.
+From what the person wants built, fill in `name`, `summary` and `version:
+0.1.0` under `app:`, and the `outcomes`. Step 3 below says how to write them
+well. Ask them nothing else that goes into a file.
 
-### And the email address on the commits
+### 4. Never write personal data into any file
 
-Every commit shows its author's email address, publicly and for good. Before
-the **first** commit, look at the one this machine will use:
+No email address, no real name, no phone number, no postal address, nothing
+about the person: not in `manifest.yaml`, not in code, comments, tests, docs or
+commit messages. Pippa needs none of it, and in this public repository anyone
+could read it, for good. If an old `manifest.yaml` still has an `owner_email`
+line, delete it: Pippa refuses the push while it is there.
 
-```bash
-git config user.email
-```
+An example address in a test or a doc is fine at `example.com` (or a domain
+ending `.example`); any other address stops the commit (6) and the build.
 
-If it is a personal address the person would rather not publish, or it is
-empty, offer GitHub's private address instead, and set it for this
-repository only (no `--global`):
+### 5. Set the name and email address on the commits
+
+Every commit carries a name and an email address, publicly and for good. Set
+both for this repository only (no `--global`), before the first commit, and
+again in every new copy of the repository, like step 6: a fresh clone starts
+with whatever the computer's own git settings say, usually their real name
+and a personal address.
+
+- `user.name`: the pseudonym from 2, exactly as in `app_author_name`.
+- `user.email`: their GitHub **no-reply** address,
+  `<id>+<login>@users.noreply.github.com`. Never a personal address.
 
 ```bash
 gh api user --jq '"\(.id)+\(.login)@users.noreply.github.com"'
+git config user.name "Tidewatcher"
 git config user.email "<id>+<login>@users.noreply.github.com"
 ```
 
-Without `gh`, they can copy that address from **Settings → Emails** on
-GitHub. Point them at **Keep my email addresses private** on the same page:
-with it on, the edits they make on the GitHub website use that address too.
+Without `gh`, ask for their GitHub **username** (only that) and read their
+`id` from `https://api.github.com/users/<login>`. Point them at **Keep my
+email addresses private** under **Settings → Emails** on GitHub: with it on,
+edits they make on the GitHub website use the no-reply address too. Those
+edits show the name on their GitHub profile, though (their username if the
+profile has none), not the pseudonym: if that is their real name, make the
+changes here rather than on the website.
+
+If `app_author_name` changes later, change `user.name` with it.
+
+### 6. Switch on the commit check
+
+```bash
+git config core.hooksPath .githooks
+```
+
+`.githooks/pre-commit` then stops any commit whose address is not a GitHub
+no-reply address, whose name is not the `app_author_name` in the staged
+`manifest.yaml` (or, while that is empty, that has no name set for this
+repository), or that adds an email address to a file, and says how to fix it.
+Git never runs a hook that arrives with a clone, so every copy needs this
+line. If it stops a commit, fix what it names. Never use `--no-verify`.
+
+Then tell the person, in a sentence or two, what you set up: the app id, their
+author name, and that their commits show their pseudonym and GitHub's private
+address.
 
 ---
 
@@ -332,6 +415,16 @@ costs considerably more.
 The build enforces these and names the one you broke.
 
 - **App id must match the repository** (step 1).
+- **Only this repository can publish this app.** A fork or a copy cannot
+  publish at all, whatever its files say.
+- **`app_author_name` follows the rules in step 1**, and no other builder may
+  already use it.
+- **No email address in `manifest.yaml`**, not even an example one, and **no
+  `owner_email`**: in a public repository Pippa refuses the push while it is
+  there.
+- **No email address in any file** (an example at `example.com` aside), and
+  **only a GitHub no-reply address on the commits** (step 1). The build
+  refuses a push that breaks either.
 - **`persistence: none`.** Do not change it.
 - **No `connectors:` and no `secrets:` blocks.** Those ask for a real user's
   credentials, and registration refuses any app that declares them.
@@ -341,7 +434,8 @@ The build enforces these and names the one you broke.
   `PyYAML`. Use `urllib.request`; **`requests` is not installed** where the app
   runs and importing it fails.
 - **Under 3 MB.** Never commit a virtualenv or dependencies.
-- Name and publisher may not contain "pippa", "official" or "verified".
+- `app.name` and `app_author_name` may not contain "pippa", "official" or
+  "verified".
 
 Apps **can** call public HTTP APIs, with one strict rule for keys — the same
 one as `docs/API_APPS.md`. Use an API that needs no key, or a demo key the
@@ -396,9 +490,11 @@ The loop:
    `scripts/routing_check.py`, whose findings never stop the publish. Read
    `routing_check.py` and check `manifest.yaml` against it and against step 3
    before you push: the build only tells you after the app is live.
-2. **Push.** The first time, check the email address on the commits before
-   you commit anything (step 1). Every time, stage only the files this change
-   touched, by name, and look at what is staged before you commit:
+2. **Push.** Before the first commit in this copy of the repository, step 1
+   (parts 5 and 6) has set the name and address on the commits and switched
+   on the commit check; in a copy you have not set up yet, do those two
+   first. Every time, stage only the files this change touched, by name, and
+   look at what is staged before you commit:
 
    ```bash
    git add app.py manifest.yaml test_app.py     # name the files you changed
@@ -413,7 +509,11 @@ The loop:
    `git diff --cached --stat` lists a file you did not expect — a `.env`, a
    key, a log, an editor folder, anything you cannot account for — **stop**.
    Unstage it with `git restore --staged <file>`, tell the person, and do not
-   commit until you both know what it is. This repository is public.
+   commit until you both know what it is. This repository is public. If the
+   commit check stops the commit, fix what it names and commit again.
+
+   If the push is refused because `main` has moved on (the setup job's commit,
+   or an edit made on GitHub), run `git pull --rebase` and push again.
 
    Tell the person: *"I've pushed it. The build takes about two minutes; I'll
    tell you when it is live."*
@@ -437,9 +537,10 @@ The loop:
    comment says what happened and what to do.
    - **Success** — the bot's comment says the app is live. That means
      **published**, and privately: the version you pushed is usable only by
-     the account in `owner_email`, their testers and the reviewers until it is
-     approved, and everybody else keeps the version that was live before, if
-     there was one. Tell the person: open **https://app.getpippa.ai**, go to
+     the person this repository belongs to, their testers and the reviewers
+     until it is approved, and everybody else keeps the version that was live
+     before, if there was one. Tell the person: open
+     **https://app.getpippa.ai**, go to
      **Apps**, then **Created by me**, and look at **Installed for you** on the
      app's card — it is there because it is theirs. **Not installed**: press
      **Install**. An older version than the one you pushed: press **Update to
@@ -451,8 +552,17 @@ The loop:
      before you change anything; step 3, "Before you blame routing", says
      why. When they are happy with it, they press **Submit for review** next
      to that version on the same card. Step 6. If the bot's comment has a
-     **Warnings** section (the `owner_email` warning, routing problems), the
-     app is live anyway: fix what it names and push again.
+     **Warnings** section (routing problems, an email address, the author
+     name), the app is live anyway: fix what it names and push again.
+   - **Starts with `REFUSED`** — Pippa refused to publish the push, for the
+     reason in the message. It is not a bug in the code. Do
+     what the message says — set `app.id`, remove `owner_email` or an email
+     address, choose a different `app_author_name` (ask the person; step 1,
+     part 2) — and push again. If it says the repository **isn't linked** to
+     an account, or to ask an organiser, **stop**: no change to any file fixes
+     that. Tell the person what it says; `docs/TROUBLESHOOTING.md` has every
+     refusal by its exact words. (While Pippa is being updated, the same
+     sentences can arrive after `CODE_ERROR` instead. Treat them the same.)
    - **Starts with `CODE_ERROR`** — the app is at fault. Fix what the message
      names and push again. After **5 pushes in a row that end in
      `CODE_ERROR`**, whatever the error, stop and tell the person to ask an
@@ -463,13 +573,14 @@ The loop:
      **Publish to Pippa**, **Run workflow**); you do not re-run it. If it fails
      again, they show an organiser the reference in the message.
    - **The run has ended and there is no `pippa/publish` status or comment** —
-     look at `app.id` in `manifest.yaml` first. If it is still the placeholder
-     `hack.your_app_name_here`, nothing is broken: the build skipped the push,
-     and the run's summary says only *"Nothing to publish yet"*. Set the app
-     id (step 1) and push again. Otherwise treat it as `PLATFORM_ERROR`: stop,
-     as above.
+     look at `manifest.yaml` first. If `app.id` is still the placeholder
+     `hack.your_app_name_here`, or `app_author_name` is still empty, nothing
+     is broken: the build skipped the push, and the run's summary says only
+     *"Nothing to publish yet"*. Do step 1 and push again. Otherwise treat it
+     as `PLATFORM_ERROR`: stop, as above.
 
-Never edit anything under `.github/`: the build is managed centrally. A push
+Never edit anything under `.github/`: the build and the setup job are managed
+centrally. A push
 that changes `.github/` still goes through, but publishing stops: Pippa only
 accepts a publish from the organisers' workflow, unchanged, so an edited
 workflow cannot publish the app. Keep the package under 3 MB, and write the
@@ -480,10 +591,10 @@ app in Python only. Do not make the person debug any of this.
 ## Step 6 — It is private until a reviewer approves it
 
 Publishing is no longer publishing to everybody. Every version lands as a
-**draft**: it is installable and usable by the account in `owner_email`, by
-anyone they share it with, and by the reviewers. Nobody else can see that it
-exists. A reviewer approving it is what makes it public, and a reviewer can
-only approve a version the person submitted.
+**draft**: it is installable and usable by the person this repository belongs
+to, by anyone they share it with, and by the reviewers. Nobody else can see
+that it exists. A reviewer approving it is what makes it public, and a
+reviewer can only approve a version the person submitted.
 
 `docs/REVIEW_AND_SHARING.md` is the full version, written for the builder.
 What matters while you are working:
@@ -603,7 +714,7 @@ and a missing optional field is allowed. You do not have to invent a sentinel
 value for a branch that genuinely has nothing to report.
 
 **`app.summary` must never contain the word "by".** The badge Pippa shows is
-parsed from `[via <name> <version> by <publisher>]` and splits at the first
+parsed from `[via <name> <version> by <author name>]` and splits at the first
 "by", so a summary containing it corrupts the attribution — long after a green
 build, and nothing checks for it.
 
@@ -624,13 +735,13 @@ the app's card — unless **Always use my latest version** is on. A test of the
 old version looks exactly like a fix that did not work, so check the version
 in the badge first.
 
-**`owner_email` is not `publisher`.** `publisher` is free text shown to users
-in the install screen and the badge. `owner_email` is not shown to users and
-decides who can see the app before it is approved; this repository is public,
-so anyone can still read it in `manifest.yaml`, and it stays in the git history.
-Writing the person's name into
-`owner_email`, or their email into `publisher`, each fail silently and
-differently.
+**`app_author_name` is public, and it is not who owns the app.** It is the
+name on the install screen, in the list of apps and in the badge, for everyone
+to read, and in this repository for anyone on GitHub. Who owns the app comes
+from the repository: Pippa Labs made it for one Pippa account, and every app
+published from it belongs to that account. No file says so and no file can
+change it, which is also why a fork or a copy of this repository cannot
+publish.
 
 **Only your app's own files are deployed.** `docs/`, `scripts/`,
 `README.md`, `CLAUDE.md`, `pytest.ini`, `requirements-dev.txt` and anything
@@ -645,8 +756,11 @@ word count, reading time and grade level each have their own — while two that
 both say "how long" are already one too many. `scripts/routing_check.py`
 measures the overlap and will tell you which pair is in trouble.
 
-**`publisher` is free text and nothing refuses the placeholder.** Put a real
-name on it — it is shown on the install screen and in the badge.
+**`app_author_name` replaced `publisher`.** An older manifest has
+`publisher:` under `app:` instead. It still publishes, with a warning, and
+shows that name. Move it to `app_author_name` at the top, under the rules in
+step 1, and delete the `publisher:` line; if it is a real name, ask the person
+for a pseudonym first.
 
 **`scripts/check.py` is what the build runs.** It runs only in the build,
 after the build installs the Pippa SDK; read it to see what the Check step
@@ -805,10 +919,10 @@ Keep the whole package under 3 MB.
 
 ## What wastes the most time
 
-- Leaving the app id as the placeholder — nothing publishes, and the build
-  says only "Nothing to publish yet".
-- Leaving `owner_email` as the placeholder — *not* refused. The app publishes
-  and then nobody can see it, the builder included.
+- Leaving the app id as the placeholder, or `app_author_name` empty — nothing
+  publishes, and the build says only "Nothing to publish yet".
+- Asking the person for their email address, or writing their real name into a
+  file. Nothing needs either: the repository is what makes the app theirs.
 - Testing the old version after pushing a new version number. The new one is
   not what the person gets until it is installed for them (or **Always use my
   latest version** is on); the badge says which version answered.

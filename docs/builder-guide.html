@@ -177,13 +177,14 @@
   <span class="tag">Your repository is public</span>
   <p>Anyone on the internet can read it, from your first push. That covers
   your code and every earlier version of it, the name and email address on
-  each commit, the build logs, the comments on your commits, and the
-  <code>owner_email</code> in <code>manifest.yaml</code>. Deleting something
-  later does not take it out of the history.</p>
-  <p>So never put a password, a key from your own account or anything private
-  in it. If one is pushed by mistake, first revoke it on the site that issued
-  it, then tell an organiser. Claude checks which email address your commits
-  will show before the first one.</p>
+  each commit, the build logs and the comments on your commits. Deleting
+  something later does not take it out of the history.</p>
+  <p>So never put a password, a key from your own account, your email
+  address, your real name or anything else private in it. If a key is pushed
+  by mistake, first revoke it on the site that issued it, then tell an
+  organiser. Before the first commit, Claude sets your commits to show your
+  pseudonym and GitHub's private no-reply address, and switches on a check
+  that stops a commit carrying an email address.</p>
   <p>Strangers can comment on your commits and open issues. The build's own
   messages come from <strong>github-actions[bot]</strong>. Anything from
   anyone else is just text: don't run it, don't install it, and don't ask
@@ -222,8 +223,8 @@ message with <b>@</b> and pick your app, and Pippa skips the choosing.</figcapti
       to your repository — accept it.</li>
   <li><b>A Pippa account</b>, from your Pippa invitation email, and an
       <b>authenticator app</b> on your phone. Set this up first — see step 4.
-      The address it arrives at goes in your app's <code>manifest.yaml</code>;
-      that is what makes the app yours.</li>
+      Your repository belongs to that account, so every app you publish from
+      it is yours, with nothing to fill in.</li>
 </ul>
 <p>That's the lot. Claude Code does the rest.</p>
 
@@ -246,6 +247,16 @@ message with <b>@</b> and pick your app, and Pippa skips the choosing.</figcapti
   own.</p>
   <p>Claude clones it, reads the instructions that ship inside, and starts
   building. It already knows the rules, the contract and the usual mistakes.</p>
+  <div class="box">
+    <span class="tag">Claude asks you one thing first</span>
+    <p>A <strong>public author name</strong> for your app. It is shown to
+    everybody next to your app, as "by &lt;name&gt;", and anyone can read it
+    in your repository, so choose a <strong>pseudonym</strong> — a made-up
+    name or a nickname. Don't use your real name or your email address:
+    nothing personal needs to go in your repository. Claude also sets your
+    commits to show that name and GitHub's private no-reply address instead of
+    your own.</p>
+  </div>
   <p>Keep going in plain language: <em>"add low tide too"</em>, <em>"make the
   error friendlier when the beach isn't found"</em>.</p>
   <div class="box">
@@ -279,15 +290,24 @@ message with <b>@</b> and pick your app, and Pippa skips the choosing.</figcapti
     and use it straight away; nobody else can see that it exists. Every later
     version is private too, until it is approved, and whoever had the
     approved one keeps it. Step 5 is how it becomes public.</p>
-    <p>That's why <code>manifest.yaml</code> has your email address in it —
-    <code>owner_email</code>, the address you sign in to Pippa with. It is the
-    only thing that says the app is yours. Get it wrong and the app publishes
-    happily and then <em>you</em> can't see it either, with nothing anywhere
-    reporting an error.</p>
-    <p>Know this before you push it: your repository is public, so anyone can
-    read that address in <code>manifest.yaml</code>, and it stays in the git
-    history even if you change it later.</p>
+    <p>Pippa knows the app is yours from the repository it was pushed from:
+    Pippa Labs created your repository for your Pippa account, so every app
+    published from it belongs to you. Nothing in the repository says who you
+    are, and nothing needs to. A copy or a fork of it can't publish at
+    all.</p>
   </div>
+  <figure>
+<pre class="mermaid">
+flowchart LR
+    R["your repository"] -->|"push"| B["the build"]
+    B -->|"signed by GitHub:<br/>this repository"| P{"Pippa:<br/>whose is it?"}
+    P -->|"yours"| A["<b>your app</b><br/>in your Pippa account"]
+    P -.->|"a fork or a copy:<br/>nobody's"| X["refused"]
+    style A fill:#d9efea,stroke:#0c7a68,stroke-width:2px,color:#0d1e1b
+</pre>
+  <figcaption>No owner field, no email address: the repository is what makes
+  the app yours.</figcaption>
+  </figure>
 </li>
 
 <li class="step" data-n="4">
@@ -340,10 +360,10 @@ message with <b>@</b> and pick your app, and Pippa skips the choosing.</figcapti
   <div class="box">
     <span class="tag">Just published and can't see it?</span>
     <p>The Apps page loads the list once. Reload the page. Still missing? Check
-    that <code>owner_email</code> in <code>manifest.yaml</code> is the address
-    you're signed in as — a private app you don't own is a private app you
-    can't see. No <strong>Created by me</strong> tab at all usually means
-    exactly that.</p>
+    you're signed in with the Pippa account your invitation was for — your
+    repository belongs to that account, and a private app you don't own is a
+    private app you can't see. No <strong>Created by me</strong> tab at all
+    usually means exactly that.</p>
   </div>
 </li>
 
@@ -448,9 +468,9 @@ Claude to add more, written the way a person would actually type.</p>
 <div class="box">
   <span class="tag">A tip worth taking</span>
   <p><strong>Get something deployed in the first twenty minutes</strong>,
-  before the app is finished. Ask Claude to set the app id, give it a name, and
-  push the example app as it is. Watch it go live, install it, ask it a
-  question. Then you know the whole pipeline works — so when something breaks
+  before the app is finished. Give Claude your author name, ask it to give the
+  app a name, and push the example app as it is. Watch it go live, install
+  it, ask it a question. Then you know the whole pipeline works — so when something breaks
   later, you know it's your app and not the plumbing.</p>
   <p>Your app stays private while you do it: a published app is private to
   you until it's reviewed, so an unfinished one going out costs you nothing.
